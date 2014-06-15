@@ -2,19 +2,73 @@
 
 
 ## Loading and preprocessing the data
+First, I loaded the data without any preprocessing.
 
+```{r, cache=TRUE}
+dt<-read.csv('activity.csv')
+
+```
 
 
 ## What is mean total number of steps taken per day?
+Here's a histogram of the total number of steps taken each day.
 
+```{r, cache=TRUE}
+hist(dt$steps, xlab="", main="Total number of steps taken each day")
+meanStep<-mean(dt$steps, na.rm=TRUE)
+medianStep<-median(dt$steps, na.rm=TRUE)
+```
 
+The mean and median total number of steps taken per day are `r meanStep` and `r medianStep`, respectively.
 
 ## What is the average daily activity pattern?
 
+Here's a time series plot of the number of steps, averaged across all days, against the 5-minute intervals.
 
+```{r, cache=TRUE}
+library(plyr)
+dt.average<-ddply(dt, .(interval), summarise, steps=mean(steps, na.rm=TRUE))
+with(dt.average, plot(interval, steps, type="l"))
+maxStepsIndex<-with(dt.average, which(steps==max(steps)))
+maxStepsInterval<-dt.average[maxStepsIndex, "interval"]
+```
+
+On average across all the days, the 5-minute interval from `r maxStepsInterval` to `r maxStepsInterval+5` contains the maximum number of steps.
 
 ## Imputing missing values
+Here I replaced the missing values with the mean for that 5-minute interval calculated before.
 
+```{r, cache=TRUE}
+# Total number of missing value:
+totalNA<-sum(is.na(dt$steps))
+
+# Replace the NA's 
+dt.replaced<-dt
+NAindex<-which(is.na(dt.replaced$steps))
+dt.replaced[NAindex,]$steps<-dt.average[(dt.replaced[NAindex,"interval"]/5+1),"steps"]
+
+hist(dt.replaced$steps, xlab="", main="Total number of steps taken each day (NA's replaced)")
+meanStepNew<-mean(dt.replaced$steps, na.rm=TRUE)
+medianStepNew<-median(dt.replaced$steps, na.rm=TRUE)
+```
+
+The total number of NA's is `r totalNA`. After replacing the NA's, the new mean and median total number of steps taken per day are `r meanStepNew` and `r medianStepNew`, respectively. Replacing the NA's does not seem to have a big impact.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+
+```{r}
+dt.replaced$date<-as.Date(dt.replaced$date)
+dt.replaced$weekday<-as.factor(weekdays(dt.replaced$date))
+dt.replaced$index<-"weekday"
+dt.replaced[dt.replaced$weekday=="Saturday"|dt.replaced$weekday=="Sunday","index"]<-"weekend"
+dt.replaced$index<-as.factor(dt.replaced$index)
+library(plyr)
+dt.replaced.average<-ddply(dt.replaced, .(interval, index), summarise, steps=mean(steps, na.rm=TRUE))
+library(lattice)
+xyplot(steps~interval|index, data=dt.replaced.average, type="l", layout=c(1,2))
+
+```
+
+There does seem to be some slight difference between weekend and weekdays.
